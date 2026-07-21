@@ -23,8 +23,9 @@ public class LinkController extends Controller {
     }
 
     public Result index() {
-        return ok("Bókun Link Service — POST /links to transform, GET /r/:code to redirect. See README.").as("text/plain");
-    }
+        return ok("Bókun link service\n\nPOST /links to transform, GET /r/:code to redirect.\n\nSee README.")
+            .as("text/plain; charset=utf-8");
+}
 
     // Accept raw HTML/text rather than JSON because callers POST email content directly.
     @BodyParser.Of(BodyParser.TolerantText.class)
