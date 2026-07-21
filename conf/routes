@@ -1,0 +1,5 @@
+# Link transformation: called by the email-sending system before an email goes out
+POST    /links                     controllers.LinkController.transform(request: Request)
+
+# Redirect: called when a recipient clicks a managed link in their email
+GET     /r/:code                   controllers.RedirectController.follow(code: String)
