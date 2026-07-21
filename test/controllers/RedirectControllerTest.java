@@ -63,12 +63,12 @@ public class RedirectControllerTest {
     @Test
     public void follow_redirects_whenCodeResolves() {
         when(redirectService.resolve("abcd1234"))
-                .thenReturn(Optional.of("https://bokun.io/tours/x"));
+                .thenReturn(Optional.of("https://example.com/tours/x"));
 
         Result result = controller.follow("abcd1234");
 
         assertEquals(302, result.status());
-        assertEquals(Optional.of("https://bokun.io/tours/x"), result.header("Location"));
+        assertEquals(Optional.of("https://example.com/tours/x"), result.header("Location"));
         assertEquals(Optional.of("no-store"), result.header("Cache-Control"));
     }
 }

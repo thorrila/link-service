@@ -31,14 +31,14 @@ public class LinkTransformServiceTest {
 
     @Test
     public void transform_rewritesLinkAndStoresMapping() {
-        String html = "<a href=\"https://bokun.io/tours/x\">View</a>";
+        String html = "<a href=\"https://example.com/tours/x\">View</a>";
 
         String result = service.transform(html);
 
         assertTrue(result.contains("http://localhost:9000/r/"));
-        assertFalse(result.contains("https://bokun.io/tours/x"));
-        verify(linkRepository, times(1)).save(anyString(), eq("https://bokun.io/tours/x"));
-        verify(redisClient, times(1)).set(anyString(), eq("https://bokun.io/tours/x"));
+        assertFalse(result.contains("https://example.com/tours/x"));
+        verify(linkRepository, times(1)).save(anyString(), eq("https://example.com/tours/x"));
+        verify(redisClient, times(1)).set(anyString(), eq("https://example.com/tours/x"));
     }
 
     @Test
@@ -47,10 +47,10 @@ public class LinkTransformServiceTest {
                 .doNothing()
                 .when(linkRepository).save(anyString(), anyString());
 
-        service.transform("<a href=\"https://bokun.io/tours/x\">View</a>");
+        service.transform("<a href=\"https://example.com/tours/x\">View</a>");
 
-        verify(linkRepository, times(2)).save(anyString(), eq("https://bokun.io/tours/x"));
-        verify(redisClient, times(1)).set(anyString(), eq("https://bokun.io/tours/x"));
+        verify(linkRepository, times(2)).save(anyString(), eq("https://example.com/tours/x"));
+        verify(redisClient, times(1)).set(anyString(), eq("https://example.com/tours/x"));
     }
 
     @Test
@@ -59,7 +59,7 @@ public class LinkTransformServiceTest {
                 .when(linkRepository).save(anyString(), anyString());
 
         try {
-            service.transform("<a href=\"https://bokun.io/tours/x\">View</a>");
+            service.transform("<a href=\"https://example.com/tours/x\">View</a>");
             fail("expected IllegalStateException after exhausting retry attempts");
         } catch (IllegalStateException e) {
             verify(linkRepository, times(5)).save(anyString(), anyString());
@@ -76,26 +76,26 @@ public class LinkTransformServiceTest {
 
     @Test
     public void transform_rewritesAllLinksInMultiLinkEmail() {
-        String html = "<a href=\"https://bokun.io/a\">A</a><a href=\"https://bokun.io/b\">B</a>";
+        String html = "<a href=\"https://example.com/a\">A</a><a href=\"https://example.com/b\">B</a>";
 
         String result = service.transform(html);
 
         // Both original URLs must be replaced; two separate mappings must be stored.
-        assertFalse(result.contains("https://bokun.io/a"));
-        assertFalse(result.contains("https://bokun.io/b"));
+        assertFalse(result.contains("https://example.com/a"));
+        assertFalse(result.contains("https://example.com/b"));
         verify(linkRepository, times(2)).save(anyString(), anyString());
     }
 
     @Test
     public void transform_preservesAnchorText() {
-        String result = service.transform("<a href=\"https://bokun.io\">Book your tour</a>");
+        String result = service.transform("<a href=\"https://example.com\">Book your tour</a>");
 
         assertTrue("anchor text must not be altered", result.contains("Book your tour"));
     }
 
     @Test
     public void transform_generatedCodeIsEightAlphanumericChars() {
-        service.transform("<a href=\"https://bokun.io\">click</a>");
+        service.transform("<a href=\"https://example.com\">click</a>");
 
         ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
         verify(linkRepository).save(codeCaptor.capture(), anyString());

@@ -37,7 +37,7 @@ public class LinkControllerTest {
 
     @Test
     public void transform_returns200_withTransformedHtml() {
-        String input = "<a href=\"https://bokun.io\">click</a>";
+        String input = "<a href=\"https://example.com\">click</a>";
         String transformed = "<a href=\"http://localhost:9000/r/abc12345\">click</a>";
         when(linkTransformService.transform(input)).thenReturn(transformed);
 

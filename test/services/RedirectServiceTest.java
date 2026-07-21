@@ -29,23 +29,23 @@ public class RedirectServiceTest {
 
     @Test
     public void resolve_returnsCachedValue_onCacheHit() {
-        when(redisClient.get("abc123")).thenReturn("https://bokun.io/tours/x");
+        when(redisClient.get("abc123")).thenReturn("https://example.com/tours/x");
 
         Optional<String> result = redirectService.resolve("abc123");
 
-        assertEquals(Optional.of("https://bokun.io/tours/x"), result);
+        assertEquals(Optional.of("https://example.com/tours/x"), result);
         verifyNoInteractions(linkRepository);
     }
 
     @Test
     public void resolve_fallsBackToDatabase_onCacheMiss() {
         when(redisClient.get("abc123")).thenReturn(null);
-        when(linkRepository.findByCode("abc123")).thenReturn(Optional.of("https://bokun.io/tours/x"));
+        when(linkRepository.findByCode("abc123")).thenReturn(Optional.of("https://example.com/tours/x"));
 
         Optional<String> result = redirectService.resolve("abc123");
 
-        assertEquals(Optional.of("https://bokun.io/tours/x"), result);
-        verify(redisClient).set("abc123", "https://bokun.io/tours/x");
+        assertEquals(Optional.of("https://example.com/tours/x"), result);
+        verify(redisClient).set("abc123", "https://example.com/tours/x");
     }
 
     @Test
