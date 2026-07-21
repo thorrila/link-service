@@ -1,3 +1,6 @@
+# Root: a plain explainer
+GET     /                           controllers.LinkController.index()
+
 # Link transformation: called by the email-sending system before an email goes out
 POST    /links                     controllers.LinkController.transform(request: Request)
 
