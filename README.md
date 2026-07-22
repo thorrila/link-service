@@ -178,12 +178,13 @@ Replace `YOUR_CODE` with the code returned by the POST above. Returns a 302 redi
 
 **Recommended:** Docker Compose for MySQL, Redis, and LocalStack (SQS) together:
 ```bash
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_DEFAULT_REGION=eu-west-1
+
 docker-compose up -d
 aws --endpoint-url=http://localhost:4566 --region eu-west-1 sqs create-queue --queue-name click-events
-AWS_ACCESS_KEY_ID=test \
-AWS_SECRET_ACCESS_KEY=test \
-AWS_DEFAULT_REGION=eu-west-1 \
-SQS_ENDPOINT_OVERRIDE=http://localhost:4566 \
+SQS_ENDPOINT_OVERRIDE=http://localhost:4566 
 sbt run
 ```
 *These variables point the app at LocalStack instead of real AWS, for local use only.*
