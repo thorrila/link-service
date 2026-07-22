@@ -40,7 +40,12 @@ public class RedisClient {
         // Checks every 30 seconds instead of the default much longer interval.
         poolConfig.setTimeBetweenEvictionRuns(Duration.ofSeconds(30));
         
-        this.pool = new JedisPool(poolConfig, host, port, CONNECT_TIMEOUT_MS);
+        String password = config.getString("redis.password");
+        if (password.isBlank()) {
+            this.pool = new JedisPool(poolConfig, host, port, CONNECT_TIMEOUT_MS);
+        } else {
+            this.pool = new JedisPool(poolConfig, host, port, CONNECT_TIMEOUT_MS, password);
+        }
     }
 
     public String get(String key) {
