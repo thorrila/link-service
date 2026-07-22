@@ -102,29 +102,29 @@ Click logging runs on a background thread after the redirect is sent. It never d
 
 ### Local
 
-`sbt run`, dev mode. A packaged build would do better, since dev mode adds overhead that production does not have.
+`sbt run`, dev mode, JVM warmed (first requests after startup are slower due to JIT compilation; these numbers are steady-state, not cold-start). A packaged build would do better still, since dev mode adds overhead that production does not have.
 
-- Medium load (`wrk -t2 -c20 -d10s --latency`): 
-5,304 req/sec, zero socket errors
-
-| Percentile | Latency |
-|---|---|
-| p50 | 1.53ms |
-| p75 | 104.79ms |
-| p90 | 224.66ms |
-| p99 | 488.95ms |
-| max | 578.61ms |
-
-- Heavy load (`wrk -t4 -c100 -d30s --latency`): 2,173 req/sec, 0 timeouts (down from 94 before a fix)
+- **Medium load** (`wrk -t2 -c20 -d10s --latency`): 24,498 req/sec, zero errors
 
 | Percentile | Latency |
 |---|---|
-| p50 | 17.48ms |
-| p75 | 203.10ms |
-| p90 | 318.02ms |
-| p99 | 739.28ms |
+| p50 | 0.73ms |
+| p75 | 0.89ms |
+| p90 | 1.08ms |
+| p99 | 8.98ms |
+| max | 56.33ms |
 
-The gap between p50 and the slower results under heavy load comes from real background work: every redirect also sends a click event to SQS, and at 100 connections that competes for resources on the same process. One fix came directly from this test: the SQS client's default connection pool (50) was too small for the load virtual threads can create, causing timeouts. Raising it to 200 removed the timeouts and cut the remaining errors roughly in half.
+- **Heavy load** (`wrk -t4 -c100 -d30s --latency`): 23,268 req/sec, zero errors
+
+| Percentile | Latency |
+|---|---|
+| p50 | 3.76ms |
+| p75 | 6.24ms |
+| p90 | 9.60ms |
+| p99 | 22.21ms |
+| max | 92.50ms |
+
+Both runs hit a single code repeatedly, so this measures best-case redirect speed on a guaranteed Redis cache hit, not cache-miss/MySQL-fallback behavior or key diversity under load. Throughput held steady from medium to heavy load (24.5k → 23.3k req/sec) with latency scaling predictably by connection count, showing no sign of contention or GC pressure up to 100 concurrent connections.
 
 ### Production
 
@@ -184,8 +184,7 @@ export AWS_DEFAULT_REGION=eu-west-1
 
 docker-compose up -d
 aws --endpoint-url=http://localhost:4566 --region eu-west-1 sqs create-queue --queue-name click-events
-SQS_ENDPOINT_OVERRIDE=http://localhost:4566 
-sbt run
+SQS_ENDPOINT_OVERRIDE=http://localhost:4566 sbt run
 ```
 *These variables point the app at LocalStack instead of real AWS, for local use only.*
 
