@@ -17,8 +17,7 @@ public class LinkServiceErrorHandler implements HttpErrorHandler {
 
     @Override
     public CompletionStage<Result> onClientError(RequestHeader request, int statusCode, String message) {
-        // Any unmatched route or bad request Play itself rejects, before a controller
-        // runs.
+        // Any unmatched route or bad request Play itself rejects, before a controller runs.
         if (statusCode == 404) {
             return CompletableFuture.completedFuture(
                     notFound(brandedPage("Page not found", "That page doesn't exist.")).as("text/html"));

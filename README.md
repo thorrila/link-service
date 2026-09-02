@@ -1,60 +1,3 @@
-# Bókun Link Service
-A link redirect service built for speed and graceful failure under real outbound-email load.
-
-**Live endpoint:** `https://bokun-production.up.railway.app`
-
-## Overview
-This service sits between an outbound email and the links inside it. Before an email goes out, each link is swapped for a short, trackable code. When someone clicks it, the service looks up where that code should go and redirects them there.
-
-## Stack
-- Java, Play Framework (sbt)
-- MySQL: stores the code to URL mapping
-- Redis: fast cache for the redirect path
-- AWS SQS: built to log clicks without slowing down the redirect (not connected to a live queue in production, see "Considered but not implemented")
-
-## Focus Area: Redirect UX
-Redirect speed and reliability affect conversion and trust in outbound email. This service focuses on two things:
-1. **Speed:** redirects respond in a few milliseconds on a cache hit, using Redis then MySQL, with click logging done in the background.
-2. **Graceful failure:** if a database or queue fails, the user never sees a stack trace. They see a clean, branded page instead.
-
-## Architecture
-```
-Controller          →  Service        →  Client / Repository
-(HTTP layer)      (business logic)      (Redis / MySQL / SQS)
-```
-```
-app/
-  Module.java                 : starts ClickDrainService on app boot
-  controllers/
-    LinkController.java       : GET / (explainer), POST /links
-    RedirectController.java   : GET /r/:code
-  services/
-    LinkTransformService.java : parses email HTML, replaces links, stores mappings
-    RedirectService.java      : resolves a code to its original URL (Redis first)
-    ClickLoggingService.java  : sends click events to SQS
-    ClickDrainService.java    : background loop that reads SQS and saves clicks to MySQL
-  clients/
-    RedisClient.java          : wraps Jedis (Redis get/set)
-    SqsPublisher.java         : wraps the AWS SQS client (publish)
-    SqsDrainer.java           : wraps the AWS SQS client (receive/delete)
-  repositories/
-    LinkRepository.java       : MySQL access for link mappings
-    ClickRepository.java      : MySQL access for click history, used only by ClickDrainService
-  errors/
-    LinkServiceErrorHandler.java : branded fallback pages for any unhandled error
-
-conf/
-  application.conf
-  routes
-  evolutions/default/1.sql    : creates the `links` and `clicks` tables
-
-test/
-  services/{RedirectServiceTest,LinkTransformServiceTest,ClickDrainServiceTest,ClickLoggingServiceTest}.java
-  controllers/{RedirectControllerTest,LinkControllerTest}.java
-
-Dockerfile
-docker-compose.yml           : MySQL + Redis + LocalStack for local development
-```
 
 ## How it works
 
@@ -126,9 +69,9 @@ Click logging runs on a background thread after the redirect is sent. It never d
 
 Both runs hit a single code repeatedly, so this measures best-case redirect speed on a guaranteed Redis cache hit, not cache-miss/MySQL-fallback behavior or key diversity under load. Throughput held steady from medium to heavy load (24.5k → 23.3k req/sec) with latency scaling predictably by connection count, showing no sign of contention or GC pressure up to 100 concurrent connections.
 
-### Production
+### Production (measured on a live Railway deployment)
 
-(`wrk -t2 -c20 -d10s --latency` against the live Railway app, redirect endpoint): 91.98 req/sec
+(`wrk -t2 -c20 -d10s --latency` against the deployed app, redirect endpoint): 91.98 req/sec
 
 | Percentile | Latency |
 |---|---|
@@ -156,24 +99,6 @@ Run the suite with:
 sbt test
 ```
 
-## Usage
-
-**Transform an email:**
-```bash
-curl -X POST https://bokun-production.up.railway.app/links \
-  -H "Content-Type: text/html" \
-  --data '<a href="https://example.com/tours/reykjavik-golden-circle">View your tour</a>'
-```
-Returns the same HTML with the link replaced by a managed URL, for example `https://bokun-production.up.railway.app/r/aZ3kQ9pL`.
-
-**Follow a managed link:**
-```bash
-curl -i https://bokun-production.up.railway.app/r/YOUR_CODE
-```
-Replace `YOUR_CODE` with the code returned by the POST above. Returns a 302 redirect to the original page.
-
-*(Running locally? Swap in `http://localhost:9000`.)*
-
 ## Running locally
 
 **Recommended:** Docker Compose for MySQL, Redis, and LocalStack (SQS) together:
@@ -188,6 +113,22 @@ SQS_ENDPOINT_OVERRIDE=http://localhost:4566 sbt run
 ```
 *These variables point the app at LocalStack instead of real AWS, for local use only.*
 
+## Usage
+
+**Transform an email:**
+```bash
+curl -X POST http://localhost:9000/links \
+  -H "Content-Type: text/html" \
+  --data '<a href="https://example.com/tours/reykjavik-golden-circle">View your tour</a>'
+```
+Returns the same HTML with the link replaced by a managed URL, for example `http://localhost:9000/r/aZ3kQ9pL`.
+
+**Follow a managed link:**
+```bash
+curl -i http://localhost:9000/r/YOUR_CODE
+```
+Replace `YOUR_CODE` with the code returned by the POST above. Returns a 302 redirect to the original page.
+
 ## AI-assistance disclosure
 
 This was my first real project using Play Framework, Redis and AWS SQS. An AI assistant (Claude) was used throughout to:
@@ -197,4 +138,4 @@ This was my first real project using Play Framework, Redis and AWS SQS. An AI as
 - Review already-written code to spot problems (unhandled Redis failures, missing timeouts, an overly broad catch block)
 - Help debug (a MySQL login plugin issue, a Redis authentication bug found in production, an undersized SQS connection pool causing timeouts under load)
 
-Every change was applied by the author, following the assistant's explanations rather than pasting in generated code.   
+Every change was applied by the author, following the assistant's explanations rather than pasting in generated code.

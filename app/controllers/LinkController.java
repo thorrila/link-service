@@ -22,15 +22,18 @@ public class LinkController extends Controller {
         this.linkTransformService = linkTransformService;
     }
 
+    // Mapped from routes: GET / in application.routes file
+    // Returns HTML explaining what the service does and how to use it.
     public Result index() {
-        return ok("Bókun link service\n\nPOST /links to transform, GET /r/:code to redirect.\n\nSee README.")
+        return ok("Link redirect service\n\nPOST /links to transform, GET /r/:code to redirect.\n\nSee README.")
             .as("text/plain; charset=utf-8");
-}
+    }
 
+    // Mapped from routes: POST /links in application.routes file
     // Accept raw HTML/text rather than JSON because callers POST email content directly.
-    @BodyParser.Of(BodyParser.TolerantText.class)
+    @BodyParser.Of(BodyParser.TolerantText.class) // tells Play to parse the POST body as raw text
     public Result transform(Http.Request request) {
-        String emailContent = request.body().asText();
+        String emailContent = request.body().asText();  // reads raw HTML into a string
 
         // Guard against an empty POST body, fail fast with a 400.
         if (emailContent == null || emailContent.isBlank()) {

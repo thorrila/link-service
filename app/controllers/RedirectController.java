@@ -39,12 +39,15 @@ public class RedirectController extends Controller {
         this.clickLoggingService = clickLoggingService;
     }
 
+    // Mapped from routes: GET /r/:code in application.routes file
     public Result follow(String code) {
-        // Reject garbage codes before spending a Redis/MySQL round trip.
+
+        // Fail fast: Reject garbage codes, before spending a Redis/MySQL round trip.
         if (!CODE_FORMAT.matcher(code).matches()) {
             return notFound(linkNotFoundPage()).as("text/html");
         }
 
+        // Try to resolve the code.
         Optional<String> originalUrl;
         try {
             originalUrl = redirectService.resolve(code);
@@ -53,12 +56,13 @@ public class RedirectController extends Controller {
             logger.error("Failed to resolve code={} — Redis and MySQL both unavailable", code, e);
             return status(SERVICE_UNAVAILABLE, serviceUnavailablePage()).as("text/html");
         }
-
+ 
+        // If Redis returned empty for a valid-looking code, return 404.
         if (originalUrl.isEmpty()) {
             return notFound(linkNotFoundPage()).as("text/html");
         }
 
-        // Fire-and-forget. Never blocks the redirect.
+        // Fire-and-forget. Runs on a seperate virtual thread. Never blocks the redirect.  
         CompletableFuture.runAsync(() -> clickLoggingService.logClick(code), clickLoggingExecutor)
                 .exceptionally(e -> {
                     logger.warn("Failed to log click for code={}", code, e);

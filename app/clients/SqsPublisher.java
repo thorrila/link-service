@@ -15,9 +15,9 @@ import javax.inject.Singleton;
 import java.net.URI;
 
 /**
- * Called by ClickLoggingService after every redirect, to push a click event onto SQS.
+ * Called by ClickLoggingService.logClick() after every redirect, to push a click event onto SQS.
  * The send side - ClickDrainService, elsewhere in this codebase, drains it into MySQL.
- */
+ */ 
 @Singleton
 public class SqsPublisher {
 
