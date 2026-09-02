@@ -1,3 +1,59 @@
+# Link Redirect Service
+A link redirect service built for speed and graceful failure under real outbound-email load.
+
+
+## Overview
+This service sits between an outbound email and the links inside it. Before an email goes out, each link is swapped for a short, trackable code. When someone clicks it, the service looks up where that code should go and redirects them there.
+
+## Stack
+- Java, Play Framework (sbt)
+- MySQL: stores the code to URL mapping
+- Redis: fast cache for the redirect path
+- AWS SQS: built to log clicks without slowing down the redirect (not connected to a live queue in production, see "Considered but not implemented")
+
+## Focus Area: Redirect UX
+Redirect speed and reliability affect conversion and trust in outbound email. This service focuses on two things:
+1. **Speed:** redirects respond in a few milliseconds on a cache hit, using Redis then MySQL, with click logging done in the background.
+2. **Graceful failure:** if a database or queue fails, the user never sees a stack trace. They see a clean, branded page instead.
+
+## Architecture
+```
+Controller          →  Service        →  Client / Repository
+(HTTP layer)      (business logic)      (Redis / MySQL / SQS)
+```
+```
+app/
+  Module.java                 : starts ClickDrainService on app boot
+  controllers/
+    LinkController.java       : GET / (explainer), POST /links
+    RedirectController.java   : GET /r/:code
+  services/
+    LinkTransformService.java : parses email HTML, replaces links, stores mappings
+    RedirectService.java      : resolves a code to its original URL (Redis first)
+    ClickLoggingService.java  : sends click events to SQS
+    ClickDrainService.java    : background loop that reads SQS and saves clicks to MySQL
+  clients/
+    RedisClient.java          : wraps Jedis (Redis get/set)
+    SqsPublisher.java         : wraps the AWS SQS client (publish)
+    SqsDrainer.java           : wraps the AWS SQS client (receive/delete)
+  repositories/
+    LinkRepository.java       : MySQL access for link mappings
+    ClickRepository.java      : MySQL access for click history, used only by ClickDrainService
+  errors/
+    LinkServiceErrorHandler.java : branded fallback pages for any unhandled error
+
+conf/
+  application.conf
+  routes
+  evolutions/default/1.sql    : creates the `links` and `clicks` tables
+
+test/
+  services/{RedirectServiceTest,LinkTransformServiceTest,ClickDrainServiceTest,ClickLoggingServiceTest}.java
+  controllers/{RedirectControllerTest,LinkControllerTest}.java
+
+Dockerfile
+docker-compose.yml           : MySQL + Redis + LocalStack for local development
+```
 
 ## How it works
 
